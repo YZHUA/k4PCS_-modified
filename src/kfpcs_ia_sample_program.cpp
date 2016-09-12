@@ -38,11 +38,16 @@ void conversionRad(double &rad)
 }
 int main (int argc, char *argv[])
 {
+    argv[1]="..//input//list.txt";
+    argv[2]="..//input//groundtruth.txt";
+    printf("init.\n");
+    printf("\t1.1.load list file.\n");
 	char *project_file=argv[1];
 	char *parasmeter_file=argv[2];
 	vector<cloudItem>Clouds;
 	vector<pairItem>pairs;
 
+    printf("\t1.2.load groundtruth data file.\n");
 	FILE *fp_=fopen(parasmeter_file,"r");
 	FILE *fp=fopen(project_file,"r");
 	char tmp[400];int n_cloud;
@@ -59,7 +64,7 @@ int main (int argc, char *argv[])
 	for(int i=0;i<n_pair;i++)
 	{
 		pairItem pair;
-		fscanf(fp,"%d %d %s",&pair.ID_src,&pair.ID_tgt,tmp);
+        fscanf(fp,"%d %d",&pair.ID_src,&pair.ID_tgt);
 		pairs.push_back(pair);
 		double data_tmp[6];int ID_src,ID_tgt;
 		fscanf(fp_,"%d %d %lf %lf %lf %lf %lf %lf\n",&ID_src,&ID_tgt,&data_tmp[0],&data_tmp[1],&data_tmp[2],&data_tmp[3],&data_tmp[4],&data_tmp[5]);
@@ -71,10 +76,11 @@ int main (int argc, char *argv[])
 	}
 	fclose(fp);
 	fclose(fp_);
-
+    printf("2.main loop.\n");
 	FILE *fp_log=fopen("log.txt","w");
 	for(int i=1;i<n_pair;i++)
 	{
+        printf("\t2.1 registration by k4pcs.\n");
 		int idx_src,idx_tgt;
 		for(int j=0;j<n_cloud;j++)
 		{
@@ -91,6 +97,7 @@ int main (int argc, char *argv[])
 		MAE=fabs(paras_coarse[0]*180/3.141592653-pairs[i].ground_truth[0])+fabs(paras_coarse[1]*180/3.141592653-pairs[i].ground_truth[1])+fabs(paras_coarse[2]*180/3.141592653-pairs[i].ground_truth[2]);
 		MTE=fabs(paras_coarse[3]-pairs[i].ground_truth[3])+fabs(paras_coarse[4]-pairs[i].ground_truth[4])+fabs(paras_coarse[5]-pairs[i].ground_truth[5]);
 		fprintf(fp_log,"%d %d %d %lf %lf\n",pairs[i].ID_src,pairs[i].ID_tgt,dur/1000,MAE,MTE);
+        printf("\t2.1 result judgement.\n");
 		PCL_INFO("%d %d dur %ds MAE %lf MTE %lf %d//%d\n",pairs[i].ID_src,pairs[i].ID_tgt,dur/1000,MAE,MTE,i,n_pair);
 		
 	}
@@ -118,7 +125,7 @@ int register_by_4PCS(const char *source_file,const char *target_file,double voxe
   
   cout << "ok!" << endl;
   t_end=clock();
-  PCL_INFO("load data dur%dms\n",t_end-t_start);
+  PCL_INFO("load data dur%ds %d %d\n",(t_end-t_start)/CLOCKS_PER_SEC,cloud_source->width,cloud_target->width);
 
 
   // first filter step: voxel grid 
@@ -133,7 +140,7 @@ int register_by_4PCS(const char *source_file,const char *target_file,double voxe
   sampleLeafsized  (cloud_target, *voxel_cloud_target,voxel_size_);
   cout << "ok!" << endl;
   t_end=clock();
-  PCL_INFO("voxel grid filter dur%dms\n",t_end-t_start);
+  PCL_INFO("voxel grid filter dur%ds %d %d\n",(t_end-t_start)/CLOCKS_PER_SEC,voxel_cloud_source->width,voxel_cloud_target->width);
 
 
   // second filter step: keypoint detector
@@ -151,11 +158,12 @@ int register_by_4PCS(const char *source_file,const char *target_file,double voxe
 
   dog_extract.setInputCloud (voxel_cloud_target);
   dog_extract.compute (*keypoint_cloud_target);
-  pcl::io::savePCDFileBinaryCompressed("key_src.pcd",*keypoint_cloud_source);
-  pcl::io::savePCDFileBinaryCompressed("key_tgt.pcd",*keypoint_cloud_target);
+  pcl::io::savePCDFileBinary("key_src.pcd",*keypoint_cloud_source);
+  pcl::io::savePCDFileBinary("key_tgt.pcd",*keypoint_cloud_target);
   cout << "ok!" << endl;
   t_end=clock();
-  PCL_INFO("sift key-point detection dur%dms\n",t_end-t_start);
+  PCL_INFO("sift key-point detection dur%ds %d %d\n",(t_end-t_start)/CLOCKS_PER_SEC,
+           keypoint_cloud_source->width,keypoint_cloud_target->width);
 
   // matching keypoint clouds
   cout << "Matching source and target keypoints..";
@@ -172,7 +180,7 @@ int register_by_4PCS(const char *source_file,const char *target_file,double voxe
   kfpcs_ia.align (keypoint_cloud_source_aligned);
   cout << "ok!" << endl;
   t_end=clock();
-  PCL_INFO("4PCS dur%dms\n",t_end-t_start);
+  PCL_INFO("4PCS dur%ds\n",(t_end-t_start)/CLOCKS_PER_SEC);
   
 
   // display resulting transformation matrix
@@ -189,9 +197,9 @@ int register_by_4PCS(const char *source_file,const char *target_file,double voxe
 
   pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_src_t (new pcl::PointCloud<pcl::PointXYZI>);
   pcl::transformPointCloud(*cloud_source,*cloud_src_t,kfpcs_ia.getFinalTransformation () );
-  pcl::io::savePCDFileBinaryCompressed("cloud_src_t.pcd",*cloud_src_t);
-  pcl::io::savePCDFileBinaryCompressed("cloud_src.pcd",*cloud_source);
-  pcl::io::savePCDFileBinaryCompressed("cloud_tgt.pcd",*cloud_target);
+  pcl::io::savePCDFileBinary("cloud_src_t.pcd",*cloud_src_t);
+  pcl::io::savePCDFileBinary("cloud_src.pcd",*cloud_source);
+  pcl::io::savePCDFileBinary("cloud_tgt.pcd",*cloud_target);
   //<<<<<<<<<<<<<<<<<<------------------------------------------------------------------------------------------------------------------转换参数分解--------------------->>>>>>>>>>>>>>>>>
   //旋转矩阵分解
   Eigen::Matrix4f transform=kfpcs_ia.getFinalTransformation ();

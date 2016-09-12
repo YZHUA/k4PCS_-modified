@@ -70,7 +70,7 @@ int pcl::sampleLeafsized (pcl::PointCloud <pcl::PointXYZI>::Ptr &cloud_in, pcl::
 
     cloud_out += cloud_sub; // add filter result
   }
-
+  //printf("voxel grid output.%d\n",cloud_out.width);
   return (static_cast <int> (cloud_out.size ())); // return number of points in sampled cloud
 }
 
